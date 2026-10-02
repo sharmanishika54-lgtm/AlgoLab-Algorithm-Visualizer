@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AlgoLab – Algorithm Visualizer</title>
+<style>
+:root{--paper:#eef2f7;--ink:#14213d;--cmp:#2a6fdb;--swp:#e4572e;--ok:#1f9d6b;--line:#cfd8e3;--card:#fff;--gold:#f2b705;--seen:#bcd4f6}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;font:16px/1.5 "Segoe UI",system-ui,sans-serif;color:var(--ink);background-color:var(--paper);
+ background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:28px 28px}
+header{padding:28px 20px 8px;max-width:1040px;margin:auto}
+h1{margin:0;font-size:2.2rem;letter-spacing:-.02em}
+header p{margin:4px 0 0;max-width:60ch}
+main{max-width:1040px;margin:auto;padding:12px 20px 40px}
+nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:14px 0 0}
+.tab{border:2px solid var(--ink);background:var(--card);color:var(--ink);padding:8px 16px;font:inherit;font-weight:600;border-radius:8px 8px 0 0;cursor:pointer}
+.tab[aria-selected=true]{background:var(--ink);color:#fff}
+.speed{margin-left:auto;font-size:.9rem;display:flex;gap:8px;align-items:center}
+.panel{background:var(--card);border:2px solid var(--ink);border-radius:0 8px 8px 8px;padding:16px}
+.bar{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:end;margin-bottom:14px}
+label{display:flex;flex-direction:column;font-size:.85rem;gap:3px}
+select,input[type=number]{font:inherit;padding:6px 8px;border:1.5px solid var(--ink);border-radius:6px;background:#fff}
+button{font:inherit;padding:7px 14px;border:1.5px solid var(--ink);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer}
+button.go{background:var(--cmp);border-color:var(--cmp);color:#fff;font-weight:600}
+button:hover{filter:brightness(.94)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+canvas{width:100%;display:block;border:1.5px solid var(--line);border-radius:6px;background:#fff}
+#pathCv{touch-action:none;cursor:crosshair}
+.stats{display:flex;gap:24px;margin:12px 0;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.stats b{font-size:1.3rem;margin-left:6px}
+.msg{min-height:1.6em;font-weight:600}
+.info{border-top:1.5px dashed var(--line);padding-top:10px;margin-top:8px}
+.info h3{margin:0 0 4px}
+.info table{border-collapse:collapse;margin:6px 0}
+.info td,.info th{border:1px solid var(--line);padding:3px 12px;text-align:left;font-size:.9rem}
+.info p{margin:6px 0 0;max-width:75ch}
+.boxes{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.box{width:52px;height:52px;border:2px solid var(--ink);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;transition:background .15s,opacity .15s}
+.box small{font-weight:400;font-size:.65rem;opacity:.7}
+.box.cmp{background:var(--cmp);color:#fff}
+.box.out{opacity:.25}
+.box.hit{background:var(--ok);color:#fff}
+.legend{display:flex;gap:14px;font-size:.85rem;flex-wrap:wrap;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border:1px solid var(--ink);margin-right:5px;vertical-align:-1px}
+footer{max-width:1040px;margin:auto;padding:0 20px 30px;font-size:.85rem;opacity:.75}
+</style>
+</head>
+<body>
+<header>
+  <h1>AlgoLab</h1>
+  <p>Watch sorting, searching and path finding algorithms work step by step, and compare how much work each one does.</p>
+</header>
+<main>
+  <nav aria-label="Sections">
+    <button class="tab" data-p="sort" aria-selected="true">Sorting</button>
+    <button class="tab" data-p="search" aria-selected="false">Searching</button>
+    <button class="tab" data-p="path" aria-selected="false">Path finding</button>
+    <label class="speed">Speed <input type="range" id="speed" min="1" max="10" value="6"></label>
+  </nav>
+
+  <!-- SORTING -->
+  <section class="panel" id="sort">
+    <div class="bar">
+      <label>Algorithm <select id="sortAlg">
+        <option value="bubble">Bubble sort</option><option value="selection">Selection sort</option>
+        <option value="insertion">Insertion sort</option><option value="merge">Merge sort</option>
+        <option value="quick">Quick sort</option></select></label>
+      <label>Input order <select id="sortIn">
+        <option value="random">Random</option><option value="reversed">Reversed (worst case)</option>
+        <option value="nearly">Nearly sorted</option></select></label>
+      <label>Bars: <span id="nLabel">50</span> <input type="range" id="sortN" min="10" max="120" value="50"></label>
+      <button class="go" id="sortGo">Start sorting</button>
+      <button id="sortNew">New array</button>
+    </div>
+    <canvas id="sortCv" width="960" height="340" aria-label="Bars being sorted"></canvas>
+    <div class="stats"><span>Comparisons<b id="sC">0</b></span><span>Swaps / writes<b id="sS">0</b></span></div>
+    <div class="legend"><span><i style="background:var(--ink)"></i>Unsorted</span><span><i style="background:var(--cmp)"></i>Being compared</span><span><i style="background:var(--swp)"></i>Swapped / written</span><span><i style="background:var(--ok)"></i>Finished</span></div>
+    <div class="info" id="sortInfo"></div>
+  </section>
+
+  <!-- SEARCHING -->
+  <section class="panel" id="search" hidden>
+    <div class="bar">
+      <label>Number to find <input type="number" id="target" min="1" max="99"></label>
+      <button class="go" id="linGo">Linear search</button>
+      <button class="go" id="binGo">Binary search</button>
+      <button id="searchNew">New list</button>
+    </div>
+    <div class="boxes" id="boxes"></div>
+    <div class="msg" id="searchMsg" aria-live="polite"></div>
+    <div class="legend"><span><i style="background:var(--cmp)"></i>Checking now</span><span><i style="background:#ddd"></i>Ruled out</span><span><i style="background:var(--ok)"></i>Found</span></div>
+    <div class="info" id="searchInfo"></div>
+  </section>
+
+  <!-- PATH FINDING -->
+  <section class="panel" id="path" hidden>
+    <div class="bar">
+      <label>Algorithm <select id="pathAlg">
+        <option value="bfs">Breadth-first search</option><option value="dfs">Depth-first search</option>
+        <option value="astar">A* search</option></select></label>
+      <button class="go" id="pathGo">Find path</button>
+      <button id="pathClear">Clear path</button>
+      <button id="pathMaze">Random walls</button>
+      <button id="pathWipe">Clear walls</button>
+    </div>
+    <canvas id="pathCv" width="960" height="540" aria-label="Grid for path finding"></canvas>
+    <div class="stats"><span>Cells explored<b id="pV">0</b></span><span>Path length<b id="pL">–</b></span></div>
+    <div class="msg" id="pathMsg" aria-live="polite">Drag on the grid to draw walls. Drag the green or red circle to move the start or end.</div>
+    <div class="info" id="pathInfo"></div>
+  </section>
+</main>
+<footer>Built with plain HTML, CSS and JavaScript. Each algorithm is a generator function that yields one step at a time, and the page animates those steps.</footer>
+
+<script>
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const C = { bar:'#14213d', cmp:'#2a6fdb', swp:'#e4572e', ok:'#1f9d6b', seen:'#bcd4f6', gold:'#f2b705', line:'#cfd8e3' };
+let token = 0;          // changing this number cancels any animation that is running
+let ticks = 0;
+// One animation "tick": at high speeds several steps share one pause
+async function tick() {
+  const v = +$('#speed').value;
+  if (v <= 6 || ++ticks % ((v - 5) * 2) === 0) await sleep(600 / (v * v));
+}
+
+// Table of complexity facts shown under each tool
+const INFO = {
+  bubble:   ['Bubble sort','O(n)','O(n²)','O(n²)','Compares neighbouring bars and swaps them if they are out of order, so the tallest bar "bubbles" to the end on each pass.'],
+  selection:['Selection sort','O(n²)','O(n²)','O(n²)','Finds the smallest bar in the unsorted part and moves it to the front. It makes very few swaps but always does many comparisons.'],
+  insertion:['Insertion sort','O(n)','O(n²)','O(n²)','Takes each bar and slides it left into its correct place, like sorting playing cards in your hand. Fast on nearly sorted data.'],
+  merge:    ['Merge sort','O(n log n)','O(n log n)','O(n log n)','Splits the array in half, sorts each half, then merges them. Predictable speed, but needs extra memory.'],
+  quick:    ['Quick sort','O(n log n)','O(n log n)','O(n²)','Picks a pivot, moves smaller bars to its left and larger to its right, then repeats on each side. Reversed input is a bad case with this pivot choice.'],
+  search:   ['Linear vs binary search','',' ','',''],
+  bfs:      ['Breadth-first search','O(V+E)','O(V+E)','O(V+E)','Explores the grid in rings outward from the start, so the first time it reaches the end it has found a shortest path.'],
+  dfs:      ['Depth-first search','O(V+E)','O(V+E)','O(V+E)','Follows one direction as far as it can, then backtracks. It finds a path quickly but the path is often not the shortest.'],
+  astar:    ['A* search','O(E)','O(E)','O(E)','Like BFS, but uses distance-to-goal as a hint, so it explores fewer cells while still finding a shortest path.']
+};
+function showInfo(el, key) {
+  const [n, b, a, w, text] = INFO[key];
+  el.innerHTML = `<h3>${n}</h3><table><tr><th>Best</th><th>Average</th><th>Worst</th></tr><tr><td>${b}</td><td>${a}</td><td>${w}</td></tr></table><p>${text}</p>`;
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  token++;
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+  document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== t.dataset.p);
+});
+
+// =====================================================
+// SORTING
+// Each algorithm yields ['c', i, j] for a comparison and ['s', i, j] / ['w', i] for a swap / write.
+// =====================================================
+const swap = (a, i, j) => { [a[i], a[j]] = [a[j], a[i]]; };
+const SORTS = {
+  *bubble(a) {
+    for (let i = 0; i < a.length; i++)
+      for (let j = 0; j < a.length - i - 1; j++) {
+        yield ['c', j, j + 1];
+        if (a[j] > a[j + 1]) { swap(a, j, j + 1); yield ['s', j, j + 1]; }
+      }
+  },
+  *selection(a) {
+    for (let i = 0; i < a.length; i++) {
+      let m = i;
+      for (let j = i + 1; j < a.length; j++) { yield ['c', m, j]; if (a[j] < a[m]) m = j; }
+      if (m !== i) { swap(a, i, m); yield ['s', i, m]; }
+    }
+  },
+  *insertion(a) {
+    for (let i = 1; i < a.length; i++)
+      for (let j = i; j > 0; j--) {
+        yield ['c', j - 1, j];
+        if (a[j - 1] > a[j]) { swap(a, j - 1, j); yield ['s', j - 1, j]; } else break;
+      }
+  },
+  *merge(a, lo = 0, hi = a.length - 1) {
+    if (lo >= hi) return;
+    const m = (lo + hi) >> 1;
+    yield* SORTS.merge(a, lo, m);
+    yield* SORTS.merge(a, m + 1, hi);
+    const L = a.slice(lo, m + 1), R = a.slice(m + 1, hi + 1);
+    let i = 0, j = 0, k = lo;
+    while (i < L.length || j < R.length) {
+      if (i < L.length && j < R.length) { yield ['c', lo + i, m + 1 + j]; a[k] = L[i] <= R[j] ? L[i++] : R[j++]; }
+      else a[k] = i < L.length ? L[i++] : R[j++];
+      yield ['w', k]; k++;
+    }
+  },
+  *quick(a, lo = 0, hi = a.length - 1) {
+    if (lo >= hi) return;
+    const pivot = a[hi]; let i = lo;
+    for (let j = lo; j < hi; j++) {
+      yield ['c', j, hi];
+      if (a[j] < pivot) { swap(a, i, j); yield ['s', i, j]; i++; }
+    }
+    swap(a, i, hi); yield ['s', i, hi];
+    yield* SORTS.quick(a, lo, i - 1);
+    yield* SORTS.quick(a, i + 1, hi);
+  }
+};
+
+const sCv = $('#sortCv'), sCx = sCv.getContext('2d');
+let arr = [];
+function drawBars(hi = {}, done = 0) {
+  const W = sCv.width, H = sCv.height, w = W / arr.length;
+  sCx.clearRect(0, 0, W, H);
+  arr.forEach((v, i) => {
+    sCx.fillStyle = i < done ? C.ok : (hi[i] || C.bar);
+    const h = v / 100 * (H - 6);
+    sCx.fillRect(i * w + 1, H - h, Math.max(w - 2, 1), h);
+  });
+}
+function newArray() {
+  token++;
+  const n = +$('#sortN').value, mode = $('#sortIn').value;
+  $('#nLabel').textContent = n;
+  arr = Array.from({ length: n }, (_, i) => Math.round(5 + 95 * (i + 1) / n));
+  if (mode === 'random') for (let i = n - 1; i > 0; i--) swap(arr, i, Math.floor(Math.random() * (i + 1)));
+  else if (mode === 'reversed') arr.reverse();
+  else for (let k = 0; k < Math.max(2, n / 12); k++) swap(arr, Math.floor(Math.random() * n), Math.floor(Math.random() * n));
+  $('#sC').textContent = $('#sS').textContent = 0;
+  drawBars();
+}
+$('#sortNew').onclick = newArray;
+$('#sortN').oninput = newArray;
+$('#sortIn').onchange = newArray;
+$('#sortAlg').onchange = () => showInfo($('#sortInfo'), $('#sortAlg').value);
+$('#sortGo').onclick = async () => {
+  const my = ++token;
+  let c = 0, s = 0;
+  for (const e of SORTS[$('#sortAlg').value](arr)) {
+    if (my !== token) return;
+    e[0] === 'c' ? c++ : s++;
+    const col = e[0] === 'c' ? C.cmp : C.swp, hi = { [e[1]]: col };
+    if (e[2] !== undefined) hi[e[2]] = col;
+    $('#sC').textContent = c; $('#sS').textContent = s;
+    drawBars(hi);
+    await tick();
+  }
+  for (let i = 0; i <= arr.length; i++) {   // green sweep when finished
+    if (my !== token) return;
+    drawBars({}, i);
+    await sleep(8);
+  }
+};
+
+// =====================================================
+// SEARCHING
+// =====================================================
+let list = [];
+function newList() {
+  token++;
+  const set = new Set();
+  while (set.size < 16) set.add(1 + Math.floor(Math.random() * 99));
+  list = [...set].sort((a, b) => a - b);
+  $('#target').value = list[Math.floor(Math.random() * list.length)];
+  $('#boxes').innerHTML = list.map((v, i) => `<div class="box">${v}<small>[${i}]</small></div>`).join('');
+  $('#searchMsg').textContent = 'The list is sorted, so both searches can be used. Pick a number and start.';
+}
+async function runSearch(kind) {
+  const my = ++token, t = +$('#target').value, boxes = [...$('#boxes').children], msg = $('#searchMsg');
+  boxes.forEach(b => b.className = 'box');
+  let steps = 0, found = -1;
+  if (kind === 'linear') {
+    for (let i = 0; i < list.length; i++) {
+      boxes[i].classList.add('cmp'); steps++;
+      msg.textContent = `Linear search: is ${list[i]} equal to ${t}?`;
+      await sleep(250 + 3 * 600 / ((+$('#speed').value) ** 2) * 10);
+      if (my !== token) return;
+      if (list[i] === t) { found = i; boxes[i].className = 'box hit'; break; }
+      boxes[i].className = 'box out';
+    }
+  } else {
+    let lo = 0, hi = list.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1; steps++;
+      boxes.forEach((b, i) => b.className = 'box' + (i < lo || i > hi ? ' out' : ''));
+      boxes[mid].classList.add('cmp');
+      msg.textContent = `Binary search: middle of [${lo}..${hi}] is ${list[mid]}. ${list[mid] === t ? 'Match!' : list[mid] < t ? 'Too small, go right.' : 'Too big, go left.'}`;
+      await sleep(500 + 600 / ((+$('#speed').value) ** 2) * 10);
+      if (my !== token) return;
+      if (list[mid] === t) { found = mid; break; }
+      list[mid] < t ? lo = mid + 1 : hi = mid - 1;
+    }
+    boxes.forEach((b, i) => { if (i !== found) b.className = 'box out'; });
+    if (found >= 0) boxes[found].className = 'box hit';
+  }
+  msg.textContent = found >= 0
+    ? `Found ${t} at index ${found} after ${steps} comparison${steps > 1 ? 's' : ''}.`
+    : `${t} is not in the list. Checked ${steps} position${steps > 1 ? 's' : ''}.`;
+}
+$('#linGo').onclick = () => runSearch('linear');
+$('#binGo').onclick = () => runSearch('binary');
+$('#searchNew').onclick = newList;
+$('#searchInfo').innerHTML = `<h3>Linear vs binary search</h3>
+ <table><tr><th></th><th>Best</th><th>Average</th><th>Worst</th></tr>
+ <tr><th>Linear</th><td>O(1)</td><td>O(n)</td><td>O(n)</td></tr>
+ <tr><th>Binary</th><td>O(1)</td><td>O(log n)</td><td>O(log n)</td></tr></table>
+ <p>Linear search checks every item in order. Binary search needs a sorted list but halves the search area each step. Try the same number with both and compare the comparison counts.</p>`;
+
+// =====================================================
+// PATH FINDING (grid)
+// =====================================================
+const ROWS = 18, COLS = 32, P = 30;
+const pCv = $('#pathCv'), pCx = pCv.getContext('2d');
+let grid, S = [9, 5], E = [9, 26], vis = new Set(), pth = new Set(), drag = null;
+const dirs = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+
+function* findPath(kind) {
+  const k = (r, c) => r * COLS + c, parent = new Map(), dist = new Map([[k(...S), 0]]), closed = new Set(), open = [S.slice()];
+  const f = n => dist.get(k(...n)) + Math.abs(n[0] - E[0]) + Math.abs(n[1] - E[1]);   // A*: cost so far + guess to goal
+  while (open.length) {
+    let cur;
+    if (kind === 'bfs') cur = open.shift();            // queue: first in, first out
+    else if (kind === 'dfs') cur = open.pop();         // stack: last in, first out
+    else { let b = 0; open.forEach((n, i) => { if (f(n) < f(open[b])) b = i; }); cur = open.splice(b, 1)[0]; }
+    const ck = k(...cur);
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+    yield ['v', cur[0], cur[1]];
+    if (cur[0] === E[0] && cur[1] === E[1]) {
+      const path = []; let n = k(...E);
+      while (n !== k(...S)) { path.push([Math.floor(n / COLS), n % COLS]); n = parent.get(n); }
+      yield ['p', path.reverse()];
+      return;
+    }
+    for (const [dr, dc] of dirs) {
+      const r = cur[0] + dr, c = cur[1] + dc, nk = k(r, c);
+      if (r < 0 || c < 0 || r >= ROWS || c >= COLS || grid[r][c] || closed.has(nk)) continue;
+      const nd = dist.get(ck) + 1;
+      if (kind === 'bfs') { if (dist.has(nk)) continue; dist.set(nk, nd); parent.set(nk, ck); open.push([r, c]); }
+      else if (kind === 'dfs') { parent.set(nk, ck); open.push([r, c]); }
+      else if (!dist.has(nk) || nd < dist.get(nk)) { dist.set(nk, nd); parent.set(nk, ck); open.push([r, c]); }
+    }
+  }
+  yield ['x'];
+}
+
+function drawGrid() {
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const key = r * COLS + c;
+    pCx.fillStyle = grid[r][c] ? C.bar : pth.has(key) ? C.gold : vis.has(key) ? C.seen : '#fff';
+    pCx.fillRect(c * P, r * P, P, P);
+    pCx.strokeStyle = C.line; pCx.strokeRect(c * P + .5, r * P + .5, P, P);
+  }
+  const dot = (cell, col) => { pCx.fillStyle = col; pCx.beginPath(); pCx.arc(cell[1] * P + P / 2, cell[0] * P + P / 2, P / 2 - 4, 0, 7); pCx.fill(); };
+  dot(S, C.ok); dot(E, C.swp);
+}
+function clearPath() {
+  token++; vis = new Set(); pth = new Set();
+  $('#pV').textContent = 0; $('#pL').textContent = '–';
+  drawGrid();
+}
+function wipe() { grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0)); clearPath(); }
+
+const cellAt = e => {
+  const b = pCv.getBoundingClientRect();
+  return [Math.floor((e.clientY - b.top) / b.height * ROWS), Math.floor((e.clientX - b.left) / b.width * COLS)];
+};
+function apply(r, c) {
+  if (r < 0 || c < 0 || r >= ROWS || c >= COLS) return;
+  const isS = r === S[0] && c === S[1], isE = r === E[0] && c === E[1];
+  if (drag === 'S') { if (!grid[r][c] && !isE) S = [r, c]; }
+  else if (drag === 'E') { if (!grid[r][c] && !isS) E = [r, c]; }
+  else if (!isS && !isE) grid[r][c] = drag === 'wall' ? 1 : 0;
+  clearPath();
+}
+pCv.onpointerdown = e => {
+  const [r, c] = cellAt(e);
+  pCv.setPointerCapture(e.pointerId);
+  drag = (r === S[0] && c === S[1]) ? 'S' : (r === E[0] && c === E[1]) ? 'E' : (grid[r] && grid[r][c]) ? 'erase' : 'wall';
+  apply(r, c);
+};
+pCv.onpointermove = e => { if (drag) apply(...cellAt(e)); };
+pCv.onpointerup = () => drag = null;
+
+$('#pathGo').onclick = async () => {
+  clearPath();
+  const my = token, msg = $('#pathMsg');
+  msg.textContent = 'Searching...';
+  for (const e of findPath($('#pathAlg').value)) {
+    if (my !== token) return;
+    if (e[0] === 'v') { vis.add(e[1] * COLS + e[2]); $('#pV').textContent = vis.size; drawGrid(); await tick(); }
+    else if (e[0] === 'p') {
+      for (const [r, c] of e[1]) { if (my !== token) return; pth.add(r * COLS + c); drawGrid(); await sleep(25); }
+      $('#pL').textContent = e[1].length;
+      msg.textContent = `Path found: ${e[1].length} steps, ${vis.size} cells explored.`;
+    } else msg.textContent = 'No path found. Remove some walls and try again.';
+  }
+};
+$('#pathClear').onclick = clearPath;
+$('#pathWipe').onclick = wipe;
+$('#pathMaze').onclick = () => {
+  wipe();
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
+    if (Math.random() < .28 && !(r === S[0] && c === S[1]) && !(r === E[0] && c === E[1])) grid[r][c] = 1;
+  drawGrid();
+};
+$('#pathAlg').onchange = () => showInfo($('#pathInfo'), $('#pathAlg').value);
+
+// ---------- start up ----------
+newArray(); newList(); wipe();
+showInfo($('#sortInfo'), 'bubble');
+showInfo($('#pathInfo'), 'bfs');
+</script>
+</body>
+</html>
